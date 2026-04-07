@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlatSync | Modern vs Historical Comparison</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="app">
+        <header>
+            <div class="logo">
+                <a href="projects.html" style="text-decoration: none; display: flex; align-items: center; gap: 0.5rem;">
+                    <div style="width: 24px; height: 24px; background: var(--primary); border-radius: 4px;"></div>
+                    <h1>FlatSync</h1>
+                </a>
+            </div>
+            <div class="controls">
+                <a href="projects.html" class="btn">My Projects</a>
+                <a href="#" id="btnAlign" class="btn primary">Align Images</a>
+            </div>
+        </header>
+
+        <div id="viewer-container" class="viewer-container wrapper-split">
+            <div class="panel" id="modern-panel">
+                <div class="panel-label label-left">Modern</div>
+                <div id="modern-viewer" class="viewer-el"></div>
+            </div>
+            <div class="panel" id="old-panel">
+                <div class="panel-label label-right">Historical</div>
+                <div id="old-viewer" class="viewer-el"></div>
+            </div>
+        </div>
+
+        <div class="view-tabs">
+            <button class="tab-btn active" id="btnSplit">Split Screen</button>
+            <button class="tab-btn" id="btnOverlay">Overlay</button>
+        </div>
+
+        <div id="overlay-controls" style="display: none; justify-content: center; align-items: center; gap: 1rem; margin-top: 1rem; padding: 10px;">
+            <label style="font-size: 0.8rem; color: var(--text-muted);">Overlay Opacity</label>
+            <input type="range" id="mainOpacitySlider" min="0" max="1" step="0.01" value="0.5" style="width: 150px; accent-color: var(--primary);">
+            <span id="mainOpacityVal" style="font-size: 0.8rem; min-width: 2rem;">0.50</span>
+        </div>
+    </div>
+
+    <script src="js/projects.js"></script>
+    <script src="js/viewer.js"></script>
+    <script>
+        // Get project from URL or default
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = urlParams.get('id') || 'denver-central';
+        const project = projectManager.getProject(projectId);
+        
+        // Update Align button link
+        document.getElementById('btnAlign').href = `calibrate.html?id=${projectId}`;
+
+        // Calibration defaults
+        let calibration = {
+            scale: 1.0,
+            offsetX: 0,
+            offsetY: 0,
+            rotation: 0
+        };
+
+        // Load saved calibration for this project
+        const saved = projectManager.getCalibration(projectId);
+        if (saved) {
+            calibration = saved;
+        }
+
+        let isSyncing = false;
+        let activeViewer = null;
+
+        const modernViewer = new FlatViewer('modern-viewer', {
+            panorama: project.modernUrl,
+            wrapX: true,
+            onViewChange: (state) => {
+                if (activeViewer === 'modern') syncViewers(state, 'old');
+            },
+            onAction: () => activeViewer = 'modern'
+        });
+
+        const oldViewer = new FlatViewer('old-viewer', {
+            panorama: project.historicalUrl,
+            onViewChange: (state) => {
+                if (activeViewer === 'old') syncViewers(state, 'modern');
+            },
+            onAction: () => activeViewer = 'old'
+        });
+
+        function syncViewers(sourceState, target) {
+            if (isSyncing) return;
+            isSyncing = true;
+
+            if (target === 'old') {
+                // Moving modern -> Update historical
+                oldViewer.setView({
+                    zoom: sourceState.zoom * calibration.scale,
+                    x: sourceState.x + calibration.offsetX * sourceState.zoom,
+                    y: sourceState.y + calibration.offsetY * sourceState.zoom,
+                    rotation: sourceState.rotation + calibration.rotation
+                }, true);
+            } else {
+                // Moving historical -> Update modern
+                modernViewer.setView({
+                    zoom: sourceState.zoom / calibration.scale,
+                    x: sourceState.x - calibration.offsetX * (sourceState.zoom / calibration.scale),
+                    y: sourceState.y - calibration.offsetY * (sourceState.zoom / calibration.scale),
+                    rotation: sourceState.rotation - calibration.rotation
+                }, true);
+            }
+
+            isSyncing = false;
+        }
+
+        // Layout Toggling
+        const container = document.getElementById('viewer-container');
+        const btnSplit = document.getElementById('btnSplit');
+        const btnOverlay = document.getElementById('btnOverlay');
+        const oldPanel = document.getElementById('old-panel');
+
+        btnSplit.onclick = () => {
+            container.className = 'viewer-container wrapper-split';
+            btnSplit.classList.add('active');
+            btnOverlay.classList.remove('active');
+            oldPanel.style.pointerEvents = 'auto';
+            oldPanel.style.opacity = 1;
+            document.getElementById('overlay-controls').style.display = 'none';
+        };
+        
+        const opacitySlider = document.getElementById('mainOpacitySlider');
+        const opacityVal = document.getElementById('mainOpacityVal');
+
+        btnOverlay.onclick = () => {
+            container.className = 'viewer-container wrapper-overlay';
+            btnOverlay.classList.add('active');
+            btnSplit.classList.remove('active');
+            oldPanel.style.pointerEvents = 'none';
+            oldPanel.style.opacity = opacitySlider.value;
+            document.getElementById('overlay-controls').style.display = 'flex';
+        };
+
+        opacitySlider.oninput = (e) => {
+            const v = parseFloat(e.target.value);
+            if (btnOverlay.classList.contains('active')) {
+                oldPanel.style.opacity = v;
+            }
+            opacityVal.textContent = v.toFixed(2);
+        };
+
+        // Initial sync once images load
+        setTimeout(() => {
+            activeViewer = 'modern';
+            syncViewers(modernViewer.getView(), 'old');
+        }, 500);
+    </script>
+</body>
+</html>

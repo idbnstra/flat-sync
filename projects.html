@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlatSync | My Projects</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        body { overflow-y: auto; }
+        #app { min-height: 100vh; height: auto; padding-bottom: 4rem; }
+        
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .gallery-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 2.5rem;
+        }
+
+        .gallery-header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .gallery-header p {
+            color: var(--text-muted);
+            margin: 0;
+        }
+
+        .project-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 2rem;
+        }
+
+        .project-card {
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .project-card:hover {
+            transform: translateY(-8px);
+            border-color: var(--primary);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .card-preview {
+            height: 180px;
+            background: #000;
+            position: relative;
+            display: flex;
+            gap: 2px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .preview-half {
+            flex: 1;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .card-content {
+            padding: 1.5rem;
+            flex: 1;
+        }
+
+        .card-content h3 {
+            margin: 0 0 0.5rem 0;
+            font-size: 1.25rem;
+        }
+
+        .card-content p {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+            margin-bottom: 1.5rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .card-footer {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: auto;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .modal {
+            background: var(--sidebar);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            width: 100%;
+            max-width: 500px;
+            padding: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: modalSlide 0.3s ease-out;
+        }
+
+        @keyframes modalSlide {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal h2 { margin-top: 0; }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-muted);
+        }
+
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: white;
+            font-family: inherit;
+            box-sizing: border-box;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .hint {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .btn.danger { background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.2); color: #ef4444; font-size: 0.75rem; padding: 0.4rem 0.8rem; }
+        .btn.danger:hover { background: #ef4444; color: white; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <header>
+            <div class="logo">
+                <a href="projects.html" style="text-decoration: none; display: flex; align-items: center; gap: 0.5rem;">
+                    <div style="width: 24px; height: 24px; background: var(--primary); border-radius: 4px;"></div>
+                    <h1>FlatSync</h1>
+                </a>
+            </div>
+            <div class="controls">
+                <button class="btn" id="btnImportSV">Download from Street View</button>
+                <button class="btn primary" id="btnNewProject">+ New Project</button>
+            </div>
+        </header>
+
+        <div class="container">
+            <div class="gallery-header">
+                <div>
+                    <h1>My Projects</h1>
+                    <p>Compare modern panoramas with historical layers.</p>
+                </div>
+            </div>
+
+            <div class="project-grid" id="projectGrid">
+                <!-- Projects injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- New Project Modal -->
+    <div class="modal-overlay" id="projectModal">
+        <div class="modal">
+            <h2 id="modalTitle">Create New Project</h2>
+            <form id="projectForm">
+                <div class="form-group">
+                    <label>Project Name</label>
+                    <input type="text" id="projName" placeholder="e.g. Denver 17th St." required>
+                </div>
+                <div class="form-group">
+                    <label>Modern Image URL/Path</label>
+                    <input type="text" id="projModern" placeholder="images/..." required>
+                    <div class="hint">Upload to 'images/' folder or provide a web link.</div>
+                </div>
+                <div class="form-group">
+                    <label>Historical Image URL/Path</label>
+                    <input type="text" id="projOld" placeholder="images/..." required>
+                </div>
+                <div class="modal-buttons">
+                    <button type="button" class="btn" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn primary">Create Project</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Street View Import Modal -->
+    <div class="modal-overlay" id="svModal">
+        <div class="modal">
+            <h2>Street View Import</h2>
+            <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1.5rem;">
+                Paste a Google Maps Street View link to import the panorama.
+            </p>
+            <div class="form-group">
+                <label>Street View Link</label>
+                <input type="text" id="svLink" placeholder="https://www.google.com/maps/..." required>
+                <div class="hint">Open Google Maps, enter Street View, and copy the browser URL.</div>
+            </div>
+            <div id="svStatus" style="font-size: 0.8rem; margin-top: -1rem; margin-bottom: 1rem; color: var(--primary); min-height: 1.2rem;"></div>
+            
+            <div class="form-group">
+                <label>Historical Image URL/Path (Optional)</label>
+                <input type="text" id="svHistorical" placeholder="images/...">
+                <div class="hint">You can add this later in the project settings.</div>
+            </div>
+
+            <div class="modal-buttons">
+                <button type="button" class="btn" onclick="closeModal()">Cancel</button>
+                <button type="button" class="btn primary" id="btnDoImport">Import & Create</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/projects.js"></script>
+    <script>
+        const projectGrid = document.getElementById('projectGrid');
+        const projectModal = document.getElementById('projectModal');
+        const svModal = document.getElementById('svModal');
+        const projectForm = document.getElementById('projectForm');
+
+        function renderProjects() {
+            const projects = projectManager.getAllProjects();
+            projectGrid.innerHTML = '';
+            
+            projects.forEach(p => {
+                const card = document.createElement('div');
+                card.className = 'project-card';
+                
+                const isDefault = p.id === 'denver-central';
+                
+                card.innerHTML = `
+                    <div class="card-preview">
+                        <div class="preview-half" style="background-image: url('${p.modernUrl}')"></div>
+                        <div class="preview-half" style="background-image: url('${p.historicalUrl}')"></div>
+                    </div>
+                    <div class="card-content">
+                        <h3>${p.name}</h3>
+                        <p>${p.description || 'No description provided.'}</p>
+                        <div class="card-footer">
+                            <a href="index.html?id=${p.id}" class="btn primary">View</a>
+                            <a href="calibrate.html?id=${p.id}" class="btn">Calibrate</a>
+                            ${!isDefault ? `<button class="btn danger" onclick="deleteProject('${p.id}')">Delete</button>` : ''}
+                        </div>
+                    </div>
+                `;
+                projectGrid.appendChild(card);
+            });
+        }
+
+        function deleteProject(id) {
+            if (confirm('Are you sure you want to delete this project?')) {
+                projectManager.deleteProject(id);
+                renderProjects();
+            }
+        }
+
+        document.getElementById('btnNewProject').onclick = () => {
+            projectModal.style.display = 'flex';
+        };
+
+        document.getElementById('btnImportSV').onclick = () => {
+            svModal.style.display = 'flex';
+        };
+
+        function closeModal() {
+            projectModal.style.display = 'none';
+            svModal.style.display = 'none';
+        }
+
+        projectForm.onsubmit = (e) => {
+            e.preventDefault();
+            const name = document.getElementById('projName').value;
+            const modern = document.getElementById('projModern').value;
+            const old = document.getElementById('projOld').value;
+            
+            projectManager.addProject({
+                name,
+                modernUrl: modern,
+                historicalUrl: old
+            });
+            
+            closeModal();
+            renderProjects();
+            projectForm.reset();
+        };
+
+        // Street View Import Logic
+        document.getElementById('btnDoImport').onclick = async () => {
+            const link = document.getElementById('svLink').value;
+            const historical = document.getElementById('svHistorical').value;
+            const status = document.getElementById('svStatus');
+            
+            status.textContent = 'Parsing link...';
+            
+            // Regex to find pano ID
+            // Examples:
+            // ...!1sPANO_ID!2e...
+            // ...&panoid=PANO_ID...
+            const panoMatch = link.match(/!1s([^!]+)/) || link.match(/panoid=([^&]+)/);
+            
+            if (!panoMatch) {
+                status.textContent = 'Error: Could not find Pano ID in link.';
+                status.style.color = '#ef4444';
+                return;
+            }
+            
+            const panoId = panoMatch[1];
+            status.textContent = `Found Pano ID: ${panoId.substring(0, 10)}...`;
+            
+            // We use the thumbnail API because it supports CORS and provides an equirectangular image
+            // Up to 2048x1024 often works
+            const modernUrl = `https://streetviewpixels-pa.googleapis.com/v1/thumbnail?panoid=${panoId}&w=2048&h=1024&yaw=0&pitch=0&fovy=120`;
+            
+            // Try to get a nicer name from URL coords if possible
+            const coordsMatch = link.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+            let name = 'Street View Import';
+            if (coordsMatch) {
+                name = `SV: ${coordsMatch[1]}, ${coordsMatch[2]}`;
+            }
+
+            status.textContent = 'Importing...';
+            
+            projectManager.addProject({
+                name,
+                modernUrl,
+                historicalUrl: historical || 'images/placeholder_historical.png',
+                description: `Imported from Google Street View (Pano: ${panoId})`
+            });
+            
+            setTimeout(() => {
+                closeModal();
+                renderProjects();
+                document.getElementById('svLink').value = '';
+                document.getElementById('svHistorical').value = '';
+                status.textContent = '';
+                status.style.color = 'var(--primary)';
+            }, 1000);
+        };
+
+        renderProjects();
+    </script>
+</body>
+</html>
+                name = `SV: ${coordsMatch[1]}, ${coordsMatch[2]}`;
+            }
+
+            status.textContent = 'Importing...';
+            
+            projectManager.addProject({
+                name,
+                modernUrl,
+                historicalUrl: historical || 'images/placeholder_historical.png',
+                description: `Imported from Google Street View (Pano: ${panoId})`
+            });
+            
+            setTimeout(() => {
+                closeModal();
+                renderProjects();
+                document.getElementById('svLink').value = '';
+                document.getElementById('svHistorical').value = '';
+                status.textContent = '';
+                status.style.color = 'var(--primary)';
+            }, 1000);
+        };
+
+        renderProjects();
+    </script>
+</body>
+</html>

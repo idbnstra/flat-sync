@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlatSync | Calibration Lab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        #app.layout-calibration {
+            display: flex;
+            flex-direction: row;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+        }
+        main {
+            flex: 1;
+            position: relative;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="layout-calibration">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2>Calibration Lab</h2>
+                    <a href="#" id="backToHome" class="btn small" style="font-size: 0.7rem;">Back to Home</a>
+                </div>
+                <p>Align the historic layer to the modern base.</p>
+            </div>
+            
+            <div class="sidebar-content">
+                <div class="section-title">Overlay Settings</div>
+                <div class="control-group">
+                    <div class="label-row">
+                        <label for="opacitySlider">Opacity</label>
+                        <span class="val-badge" id="opacityVal">0.5</span>
+                    </div>
+                    <input type="range" id="opacitySlider" min="0" max="1" step="0.01" value="0.5">
+                </div>
+
+                <div class="control-group">
+                    <div class="label-row">
+                        <label for="scaleSlider">Scale</label>
+                        <div class="nudge-controls">
+                            <button class="nudge-btn" onclick="nudge('scale', -1)">-</button>
+                            <span class="val-badge" id="scaleVal">1.0</span>
+                            <button class="nudge-btn" onclick="nudge('scale', 1)">+</button>
+                        </div>
+                    </div>
+                    <input type="range" id="scaleSlider" min="0.1" max="5.0" step="0.0001" value="1.0">
+                </div>
+
+                <div class="control-group">
+                    <div class="label-row">
+                        <label for="offsetXSlider">Offset X</label>
+                        <div class="nudge-controls">
+                            <button class="nudge-btn" onclick="nudge('offsetX', -1)">-</button>
+                            <span class="val-badge" id="offsetXVal">0</span>
+                            <button class="nudge-btn" onclick="nudge('offsetX', 1)">+</button>
+                        </div>
+                    </div>
+                    <input type="range" id="offsetXSlider" min="-1000" max="1000" step="0.1" value="0">
+                </div>
+
+                <div class="control-group">
+                    <div class="label-row">
+                        <label for="offsetYSlider">Offset Y</label>
+                        <div class="nudge-controls">
+                            <button class="nudge-btn" onclick="nudge('offsetY', -1)">-</button>
+                            <span class="val-badge" id="offsetYVal">0</span>
+                            <button class="nudge-btn" onclick="nudge('offsetY', 1)">+</button>
+                        </div>
+                    </div>
+                    <input type="range" id="offsetYSlider" min="-1000" max="1000" step="0.1" value="0">
+                </div>
+
+                <div class="control-group" style="padding-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.05);">
+                    <div class="label-row">
+                        <label>Nudge Fineness</label>
+                        <select id="nudgeFineness" style="background: var(--bg-hover); color: white; border: none; font-size: 0.7rem; border-radius: 4px; padding: 2px 4px;">
+                            <option value="0.1">Super Fine (0.1px)</option>
+                            <option value="1" selected>Fine (1px)</option>
+                            <option value="10">Coarse (10px)</option>
+                            <option value="100">Super Coarse (100px)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <div class="label-row">
+                        <label for="rotationSlider">Rotation</label>
+                        <span class="val-badge" id="rotationVal">0</span>
+                    </div>
+                    <input type="range" id="rotationSlider" min="-20" max="20" step="0.1" value="0">
+                </div>
+
+                <div class="section-title">Calibration Tools</div>
+                <div class="control-group">
+                    <button class="btn w-full" id="btnBlink">Blink Overlay</button>
+                </div>
+
+                <div id="control-point-section" style="display: none;">
+                    <div class="section-title">Control Point Alignment</div>
+                    <div class="control-group">
+                        <div id="points-list" style="margin-bottom: 0.5rem; max-height: 200px; overflow-y: auto;">
+                            <!-- Point items injected by JS -->
+                        </div>
+                        <button class="btn w-full small" id="btnAddPoint" style="margin-bottom: 0.5rem; font-size: 0.7rem;">+ Add Point Pair</button>
+                        
+                        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <button class="btn w-full" id="btnMarkModern" style="font-size: 0.65rem;">Mark Modern</button>
+                            <button class="btn w-full" id="btnMarkOld" style="font-size: 0.65rem;">Mark Historical</button>
+                        </div>
+                        <div id="point-status" style="font-size: 0.7rem; color: var(--text-muted); text-align: center; margin-bottom: 0.5rem;">
+                            No points marked.
+                        </div>
+                        
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; margin-bottom: 0.5rem;">
+                            <label style="font-size: 0.7rem;"><input type="checkbox" id="adjX" checked> X</label>
+                            <label style="font-size: 0.7rem;"><input type="checkbox" id="adjY" checked> Y</label>
+                            <label style="font-size: 0.7rem;"><input type="checkbox" id="adjScale"> Scale</label>
+                        </div>
+
+                        <button class="btn primary w-full" id="btnAlignPoints" disabled>Apply Alignment</button>
+                    </div>
+                </div>
+
+                <div class="section-title">Export</div>
+                <div class="config-box">
+                    <pre id="configCode"></pre>
+                </div>
+
+                <button class="btn primary w-full" id="btnSave">Save Calibration</button>
+            </div>
+        </aside>
+
+        <main>
+            <a href="#" id="exitToView" class="btn" style="position: absolute; top: 1rem; right: 1rem; z-index: 100;">Exit to View</a>
+            
+            <div class="view-tabs">
+                <button class="tab-btn active" id="btnOverlay">Overlay</button>
+                <button class="tab-btn" id="btnSideBySide">Side-by-Side</button>
+            </div>
+
+            <div id="viewer-container" class="viewer-container wrapper-overlay">
+                <div class="panel" id="modern-panel">
+                    <div class="panel-label label-left">Modern Base</div>
+                    <div id="modern-viewer" class="viewer-el"></div>
+                </div>
+                <div class="panel" id="old-panel">
+                    <div class="panel-label label-right">Historical Overlay</div>
+                    <div id="old-viewer" class="viewer-el"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/projects.js"></script>
+    <script src="js/viewer.js"></script>
+    <script>
+        // Get project from URL or default
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = urlParams.get('id') || 'denver-central';
+        const project = projectManager.getProject(projectId);
+
+        // Update navigation links
+        document.getElementById('backToHome').href = `index.html?id=${projectId}`;
+        document.getElementById('exitToView').href = `index.html?id=${projectId}`;
+
+        // Load settings
+        let settings = {
+            scale: 1,
+            offsetX: 0,
+            offsetY: 0,
+            rotation: 0
+        };
+
+        const saved = projectManager.getCalibration(projectId);
+        if (saved) settings = saved;
+
+        let isSyncing = false;
+        let activeViewer = 'modern';
+
+        const modernViewer = new FlatViewer('modern-viewer', {
+            panorama: project.modernUrl,
+            wrapX: true,
+            onInit: () => {
+                const img = modernViewer.img;
+                const ox = document.getElementById('offsetXSlider');
+                const oy = document.getElementById('offsetYSlider');
+                const w = img.naturalWidth;
+                const h = img.naturalHeight;
+                
+                ox.min = -Math.round(w);
+                ox.max = Math.round(w);
+                oy.min = -Math.round(h);
+                oy.max = Math.round(h);
+                
+                console.log('FlatSync: Sliders updated with range:', w, h);
+            },
+            onViewChange: (state) => {
+                if (activeViewer === 'modern') syncViewers(state, 'old');
+            },
+            onAction: () => activeViewer = 'modern'
+        });
+
+        const oldViewer = new FlatViewer('old-viewer', {
+            panorama: project.historicalUrl,
+            onViewChange: (state) => {
+                if (activeViewer === 'old') syncViewers(state, 'modern');
+            },
+            onAction: () => activeViewer = 'old'
+        });
+
+        function syncViewers(sourceState, target) {
+            if (isSyncing) return;
+            isSyncing = true;
+
+            if (target === 'old') {
+                oldViewer.setView({
+                    zoom: sourceState.zoom * settings.scale,
+                    x: sourceState.x + settings.offsetX * sourceState.zoom,
+                    y: sourceState.y + settings.offsetY * sourceState.zoom,
+                    rotation: sourceState.rotation + settings.rotation
+                }, true);
+            } else {
+                modernViewer.setView({
+                    zoom: sourceState.zoom / settings.scale,
+                    x: sourceState.x - settings.offsetX * (sourceState.zoom / settings.scale),
+                    y: sourceState.y - settings.offsetY * (sourceState.zoom / settings.scale),
+                    rotation: sourceState.rotation - settings.rotation
+                }, true);
+            }
+
+            isSyncing = false;
+            updateCode();
+        }
+
+        // Manual Nudging
+        function nudge(key, dir) {
+            const fineness = parseFloat(document.getElementById('nudgeFineness').value);
+            if (key === 'scale') {
+                const step = fineness * 0.001; 
+                settings.scale += dir * step;
+                if (settings.scale < 0.1) settings.scale = 0.1;
+            } else {
+                settings[key] += dir * fineness;
+            }
+            
+            const input = document.getElementById(key + 'Slider');
+            if (input) input.value = settings[key];
+            document.getElementById(key + 'Val').textContent = (key === 'scale') ? settings.scale.toFixed(4) : Math.round(settings[key]);
+            
+            syncViewers(modernViewer.getView(), 'old');
+        }
+
+        // Control Point Alignment Logic
+        let activePairIdx = 0;
+        let pairs = [
+             { id: Date.now(), modern: null, old: null }
+        ];
+        let markMode = 'none';
+
+        const btnMarkModern = document.getElementById('btnMarkModern');
+        const btnMarkOld = document.getElementById('btnMarkOld');
+        const btnAlign = document.getElementById('btnAlignPoints');
+        const pointStatus = document.getElementById('point-status');
+        const pointsList = document.getElementById('points-list');
+        const btnAddPoint = document.getElementById('btnAddPoint');
+
+        function renderPointsList() {
+            pointsList.innerHTML = '';
+            pairs.forEach((p, idx) => {
+                const item = document.createElement('div');
+                item.className = `point-item ${idx === activePairIdx ? 'active' : ''}`;
+                
+                let label = `Pair ${idx + 1}: `;
+                if (p.modern && p.old) label += "Complete";
+                else if (p.modern || p.old) label += "Partial";
+                else label += "Empty";
+
+                item.innerHTML = `
+                    <span>${label}</span>
+                    <span class="delete-btn" onclick="deletePair(${idx}, event)">✕</span>
+                `;
+                item.onclick = () => selectPair(idx);
+                pointsList.appendChild(item);
+            });
+            updatePointUI();
+            updateMarkers();
+        }
+
+        function selectPair(idx) {
+            activePairIdx = idx;
+            renderPointsList();
+        }
+
+        function deletePair(idx, e) {
+            e.stopPropagation();
+            if (pairs.length <= 1) {
+                pairs[0] = { id: Date.now(), modern: null, old: null };
+            } else {
+                pairs.splice(idx, 1);
+                if (activePairIdx >= pairs.length) activePairIdx = pairs.length - 1;
+            }
+            renderPointsList();
+        }
+
+        btnAddPoint.onclick = () => {
+            pairs.push({ id: Date.now(), modern: null, old: null });
+            activePairIdx = pairs.length - 1;
+            renderPointsList();
+        };
+
+        function updatePointUI() {
+            const p = pairs[activePairIdx];
+            if (!p) return;
+            let status = `Pair ${activePairIdx+1}: `;
+            if (p.modern && p.old) status += "Ready";
+            else if (p.modern) status += "Need Historical";
+            else if (p.old) status += "Need Modern";
+            else status += "Mark a point";
+            pointStatus.textContent = status;
+
+            const readyCount = pairs.filter(p => p.modern && p.old).length;
+            btnAlign.disabled = readyCount === 0;
+        }
+
+        function updateMarkers() {
+            const p = pairs[activePairIdx];
+            if (!p) return;
+            if (p.modern) modernViewer.showMarker(p.modern, '#3b82f6');
+            else if (modernViewer.marker) modernViewer.marker.style.display = 'none';
+            
+            if (p.old) oldViewer.showMarker(p.old, '#ef4444');
+            else if (oldViewer.marker) oldViewer.marker.style.display = 'none';
+        }
+
+        btnMarkModern.onclick = () => {
+            markMode = 'modern';
+            modernViewer.container.style.cursor = 'crosshair';
+            btnMarkModern.classList.add('primary');
+            btnMarkOld.classList.remove('primary');
+        };
+
+        btnMarkOld.onclick = () => {
+            markMode = 'old';
+            oldViewer.container.style.cursor = 'crosshair';
+            btnMarkOld.classList.add('primary');
+            btnMarkModern.classList.remove('primary');
+        };
+
+        const handleViewerClick = (viewer, type, e) => {
+            if (markMode !== type) return;
+            const rect = viewer.container.getBoundingClientRect();
+            const cx = e.clientX - rect.left;
+            const cy = e.clientY - rect.top;
+            const pt = viewer.containerToNatural(cx, cy);
+            
+            if (type === 'modern') pairs[activePairIdx].modern = pt;
+            else pairs[activePairIdx].old = pt;
+            
+            renderPointsList();
+            viewer.container.style.cursor = 'grab';
+            markMode = 'none';
+            btnMarkModern.classList.remove('primary');
+            btnMarkOld.classList.remove('primary');
+        };
+
+        modernViewer.container.addEventListener('click', (e) => handleViewerClick(modernViewer, 'modern', e));
+        oldViewer.container.addEventListener('click', (e) => handleViewerClick(oldViewer, 'old', e));
+
+        btnAlign.onclick = () => {
+            const adjX = document.getElementById('adjX').checked;
+            const adjY = document.getElementById('adjY').checked;
+            const adjScale = document.getElementById('adjScale').checked;
+
+            const readyPairs = pairs.filter(p => p.modern && p.old);
+            if (readyPairs.length === 0) return;
+
+            if (adjScale && readyPairs.length >= 2) {
+                // Best-fit scale from multiple points
+                // We use the sum of distances from mean strategy
+                const meanM = { x: 0, y: 0 };
+                const meanO = { x: 0, y: 0 };
+                readyPairs.forEach(p => {
+                    meanM.x += p.modern.x; meanM.y += p.modern.y;
+                    meanO.x += p.old.x; meanO.y += p.old.y;
+                });
+                meanM.x /= readyPairs.length; meanM.y /= readyPairs.length;
+                meanO.x /= readyPairs.length; meanO.y /= readyPairs.length;
+
+                let num = 0, den = 0;
+                readyPairs.forEach(p => {
+                    const dxm = p.modern.x - meanM.x, dym = p.modern.y - meanM.y;
+                    const dxo = p.old.x - meanO.x, dyo = p.old.y - meanO.y;
+                    num += Math.sqrt(dxm*dxm + dym*dym);
+                    den += Math.sqrt(dxo*dxo + dyo*dyo);
+                });
+
+                if (den > 0) {
+                    settings.scale = num / den;
+                    document.getElementById('scaleSlider').value = settings.scale;
+                    document.getElementById('scaleVal').textContent = settings.scale.toFixed(4);
+                }
+            } else if (adjScale) {
+                alert("Scale adjustment requires at least 2 complete point pairs.");
+                return;
+            }
+
+            // Offset adjustment (using mean of all ready points)
+            const meanM = { x: 0, y: 0 };
+            const meanO = { x: 0, y: 0 };
+            readyPairs.forEach(p => {
+                meanM.x += p.modern.x; meanM.y += p.modern.y;
+                meanO.x += p.old.x; meanO.y += p.old.y;
+            });
+            meanM.x /= readyPairs.length; meanM.y /= readyPairs.length;
+            meanO.x /= readyPairs.length; meanO.y /= readyPairs.length;
+
+            if (adjX) {
+                settings.offsetX = meanM.x - (meanO.x * settings.scale);
+                document.getElementById('offsetXSlider').value = settings.offsetX;
+                document.getElementById('offsetXVal').textContent = Math.round(settings.offsetX);
+            }
+            if (adjY) {
+                settings.offsetY = meanM.y - (meanO.y * settings.scale);
+                document.getElementById('offsetYSlider').value = settings.offsetY;
+                document.getElementById('offsetYVal').textContent = Math.round(settings.offsetY);
+            }
+
+            syncViewers(modernViewer.getView(), 'old');
+            updateCode();
+            btnAlign.textContent = 'Aligned!';
+            setTimeout(() => { btnAlign.textContent = 'Apply Alignment'; }, 2000);
+        };
+
+        // Blink Overlay logic
+        let blinkInterval = null;
+        document.getElementById('btnBlink').onclick = () => {
+            const btn = document.getElementById('btnBlink');
+            const panel = document.getElementById('old-panel');
+            const slider = document.getElementById('opacitySlider');
+            if (blinkInterval) {
+                clearInterval(blinkInterval);
+                blinkInterval = null;
+                btn.textContent = 'Blink Overlay';
+                btn.classList.remove('primary');
+                panel.style.opacity = slider.value;
+            } else {
+                btn.textContent = 'Stop Blinking';
+                btn.classList.add('primary');
+                let vis = true;
+                blinkInterval = setInterval(() => {
+                    vis = !vis;
+                    panel.style.opacity = vis ? slider.value : 0;
+                }, 250);
+            }
+        };
+
+        document.getElementById('btnSave').onclick = () => {
+            projectManager.saveCalibration(projectId, settings);
+            const btn = document.getElementById('btnSave');
+            btn.textContent = 'Saved!';
+            btn.classList.add('fade-in');
+            setTimeout(() => { btn.textContent = 'Save Calibration'; }, 2000);
+        };
+
+        // Layout Toggles
+        const container = document.getElementById('viewer-container');
+        const btnOverlay = document.getElementById('btnOverlay');
+        const btnSideBySide = document.getElementById('btnSideBySide');
+        const oldPanel = document.getElementById('old-panel');
+        const cpSection = document.getElementById('control-point-section');
+
+        btnOverlay.onclick = () => {
+            container.className = 'viewer-container wrapper-overlay';
+            btnOverlay.classList.add('active');
+            btnSideBySide.classList.remove('active');
+            oldPanel.style.pointerEvents = 'none';
+            cpSection.style.display = 'none';
+        };
+
+        btnSideBySide.onclick = () => {
+            container.className = 'viewer-container wrapper-split';
+            btnSideBySide.classList.add('active');
+            btnOverlay.classList.remove('active');
+            oldPanel.style.pointerEvents = 'auto';
+            oldPanel.style.opacity = 1;
+            cpSection.style.display = 'block';
+        };
+
+        function updateCode() {
+            document.getElementById('configCode').textContent = JSON.stringify(settings, null, 2);
+        }
+
+        renderPointsList();
+        setTimeout(() => { syncViewers(modernViewer.getView(), 'old'); }, 500);
+        updateCode();
+    </script>
+</body>
+</html>
