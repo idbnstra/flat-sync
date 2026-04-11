@@ -180,14 +180,25 @@
             scale: 1,
             offsetX: 0,
             offsetY: 0,
-            rotation: 0
+            rotation: 0,
+            opacity: 0.5,
+            controlPoints: []
         };
 
         const saved = projectManager.getCalibration(projectId);
-        if (saved) settings = saved;
+        if (saved) {
+            // Migration/Loading: handle both old flat settings and new structured settings
+            if (saved.controlPoints === undefined) {
+                settings = { ...settings, ...saved };
+            } else {
+                settings = saved;
+            }
+        }
 
         let isSyncing = false;
         let activeViewer = 'modern';
+        let modernReady = false;
+        let oldReady = false;
 
         const modernViewer = new FlatViewer('modern-viewer', {
             panorama: project.modernUrl,
@@ -205,6 +216,8 @@
                 oy.max = Math.round(h);
                 
                 console.log('FlatSync: Sliders updated with range:', w, h);
+                modernReady = true;
+                checkInitSync();
             },
             onViewChange: (state) => {
                 if (activeViewer === 'modern') syncViewers(state, 'old');
@@ -214,6 +227,10 @@
 
         const oldViewer = new FlatViewer('old-viewer', {
             panorama: project.historicalUrl,
+            onInit: () => {
+                oldReady = true;
+                checkInitSync();
+            },
             onViewChange: (state) => {
                 if (activeViewer === 'old') syncViewers(state, 'modern');
             },
@@ -264,9 +281,10 @@
 
         // Control Point Alignment Logic
         let activePairIdx = 0;
-        let pairs = [
-             { id: Date.now(), modern: null, old: null }
-        ];
+        let pairs = settings.controlPoints;
+        if (pairs.length === 0) {
+            pairs.push({ id: Date.now(), modern: null, old: null });
+        }
         let markMode = 'none';
 
         const btnMarkModern = document.getElementById('btnMarkModern');
@@ -502,8 +520,67 @@
             document.getElementById('configCode').textContent = JSON.stringify(settings, null, 2);
         }
 
+        // Slider Event Listeners
+        const sliders = [
+            { id: 'opacitySlider', key: 'opacity', label: 'opacityVal', isFloat: true, fmt: 2 },
+            { id: 'scaleSlider', key: 'scale', label: 'scaleVal', isFloat: true, fmt: 4 },
+            { id: 'offsetXSlider', key: 'offsetX', label: 'offsetXVal' },
+            { id: 'offsetYSlider', key: 'offsetY', label: 'offsetYVal' },
+            { id: 'rotationSlider', key: 'rotation', label: 'rotationVal', isFloat: true, fmt: 1 }
+        ];
+
+        sliders.forEach(s => {
+            const el = document.getElementById(s.id);
+            if (!el) return;
+            el.addEventListener('input', (e) => {
+                const val = s.isFloat ? parseFloat(e.target.value) : Math.round(parseFloat(e.target.value));
+                settings[s.key] = val;
+                
+                const label = document.getElementById(s.label);
+                if (label) label.textContent = s.fmt ? val.toFixed(s.fmt) : (s.key.includes('offset') ? Math.round(val) : val);
+
+                if (s.key === 'opacity') {
+                    if (!blinkInterval) {
+                        document.getElementById('old-panel').style.opacity = val;
+                    }
+                } else {
+                    syncViewers(modernViewer.getView(), 'old');
+                }
+                updateCode();
+            });
+        });
+
+        // Update UI from loaded settings
+        function updateUIFromSettings() {
+            if (settings.opacity !== undefined) {
+                document.getElementById('opacitySlider').value = settings.opacity;
+                document.getElementById('opacityVal').textContent = settings.opacity.toFixed(2);
+                document.getElementById('old-panel').style.opacity = settings.opacity;
+            }
+
+            document.getElementById('scaleSlider').value = settings.scale;
+            document.getElementById('scaleVal').textContent = settings.scale.toFixed(4);
+
+            document.getElementById('offsetXSlider').value = settings.offsetX;
+            document.getElementById('offsetXVal').textContent = Math.round(settings.offsetX);
+
+            document.getElementById('offsetYSlider').value = settings.offsetY;
+            document.getElementById('offsetYVal').textContent = Math.round(settings.offsetY);
+
+            document.getElementById('rotationSlider').value = settings.rotation;
+            document.getElementById('rotationVal').textContent = settings.rotation.toFixed(1);
+        }
+
+        function checkInitSync() {
+            if (modernReady && oldReady) {
+                console.log('FlatSync: Both viewers ready, performing initial sync');
+                activeViewer = 'modern';
+                syncViewers(modernViewer.getView(), 'old');
+            }
+        }
+
+        updateUIFromSettings();
         renderPointsList();
-        setTimeout(() => { syncViewers(modernViewer.getView(), 'old'); }, 500);
         updateCode();
     </script>
 </body>

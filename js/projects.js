@@ -10,8 +10,8 @@ const DEFAULT_PROJECTS = [
     {
         id: 'denver-central',
         name: 'Denver Central (1930s vs Modern)',
-        modernUrl: 'images/centralpano_modern.png',
-        historicalUrl: 'images/centralpano_old.JPG',
+        modernUrl: 'images/streetview_qG9OSpzmP62gz4aEXgARvA_high.jpg',
+        historicalUrl: 'images/centralpano_old.tif',
         description: 'Downtown Denver historical comparison.',
         dateCreated: Date.now()
     }

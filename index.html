@@ -66,18 +66,31 @@
             rotation: 0
         };
 
+        const opacitySlider = document.getElementById('mainOpacitySlider');
+        const opacityVal = document.getElementById('mainOpacityVal');
+
         // Load saved calibration for this project
         const saved = projectManager.getCalibration(projectId);
         if (saved) {
             calibration = saved;
+            if (calibration.opacity !== undefined) {
+                opacitySlider.value = calibration.opacity;
+                opacityVal.textContent = calibration.opacity.toFixed(2);
+            }
         }
 
         let isSyncing = false;
         let activeViewer = null;
+        let modernReady = false;
+        let oldReady = false;
 
         const modernViewer = new FlatViewer('modern-viewer', {
             panorama: project.modernUrl,
             wrapX: true,
+            onInit: () => {
+                modernReady = true;
+                checkInitSync();
+            },
             onViewChange: (state) => {
                 if (activeViewer === 'modern') syncViewers(state, 'old');
             },
@@ -86,6 +99,10 @@
 
         const oldViewer = new FlatViewer('old-viewer', {
             panorama: project.historicalUrl,
+            onInit: () => {
+                oldReady = true;
+                checkInitSync();
+            },
             onViewChange: (state) => {
                 if (activeViewer === 'old') syncViewers(state, 'modern');
             },
@@ -131,9 +148,6 @@
             oldPanel.style.opacity = 1;
             document.getElementById('overlay-controls').style.display = 'none';
         };
-        
-        const opacitySlider = document.getElementById('mainOpacitySlider');
-        const opacityVal = document.getElementById('mainOpacityVal');
 
         btnOverlay.onclick = () => {
             container.className = 'viewer-container wrapper-overlay';
@@ -152,11 +166,12 @@
             opacityVal.textContent = v.toFixed(2);
         };
 
-        // Initial sync once images load
-        setTimeout(() => {
-            activeViewer = 'modern';
-            syncViewers(modernViewer.getView(), 'old');
-        }, 500);
+        function checkInitSync() {
+            if (modernReady && oldReady) {
+                activeViewer = 'modern';
+                syncViewers(modernViewer.getView(), 'old');
+            }
+        }
     </script>
 </body>
 </html>

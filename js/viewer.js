@@ -20,6 +20,7 @@ class FlatViewer {
             rotation: 0,
             isDragging: false,
             isInitialized: false,
+            isViewModified: false,
             startX: 0,
             startY: 0,
             lastX: 0,
@@ -86,18 +87,47 @@ class FlatViewer {
             }
         });
         this.resizeObserver.observe(this.container);
+        
+        this.createLoadingOverlay();
+    }
+
+    createLoadingOverlay() {
+        this.overlay = document.createElement('div');
+        this.overlay.className = 'viewer-loading-overlay';
+        this.overlay.innerHTML = `
+            <div class="loader-content">
+                <div class="loader-spinner"></div>
+                <div class="loader-text">Initializing View...</div>
+            </div>
+        `;
+        this.container.appendChild(this.overlay);
     }
 
     tryInitialReset() {
-        if (this.state.isInitialized) return;
-        
         const rect = this.container.getBoundingClientRect();
         if (rect.width > 0 && rect.height > 0 && this.img.complete && this.img.naturalWidth > 0) {
-            this.reset();
-            this.state.isInitialized = true;
-            console.log('FlatViewer: Initialized with dimensions', rect.width, rect.height);
-            // Notify when fully initialized to help with dynamic UI ranges
-            if (this.options.onInit) this.options.onInit(this.getView());
+            // If the view hasn't been manually modified yet, we re-fit it to the container
+            if (!this.state.isViewModified) {
+                this.reset();
+            }
+            
+            if (!this.state.isInitialized) {
+                this.state.isInitialized = true;
+                console.log('FlatViewer: Initialized (isViewModified:', this.state.isViewModified, ')');
+                
+                // Remove overlay
+                if (this.overlay) {
+                    this.overlay.style.opacity = '0';
+                    setTimeout(() => {
+                        if (this.overlay && this.overlay.parentNode) {
+                            this.overlay.parentNode.removeChild(this.overlay);
+                            this.overlay = null;
+                        }
+                    }, 500);
+                }
+
+                if (this.options.onInit) this.options.onInit(this.getView());
+            }
         }
     }
 
@@ -122,6 +152,7 @@ class FlatViewer {
         this.state.x = rect.width / 2;
         this.state.y = rect.height / 2;
         this.updateTransform();
+        this.onViewChange();
     }
 
     addEventListeners() {
@@ -141,6 +172,7 @@ class FlatViewer {
             const dy = e.clientY - this.state.startY;
             this.state.x = this.state.lastX + dx;
             this.state.y = this.state.lastY + dy;
+            this.state.isViewModified = true;
             this.updateTransform();
             this.onViewChange();
         });
@@ -172,6 +204,7 @@ class FlatViewer {
             // Zoom relative to mouse position
             this.state.x = mouseX - (mouseX - this.state.x) * (this.state.zoom / oldZoom);
             this.state.y = mouseY - (mouseY - this.state.y) * (this.state.zoom / oldZoom);
+            this.state.isViewModified = true;
 
             this.updateTransform();
             this.onViewChange();
@@ -230,6 +263,7 @@ class FlatViewer {
         if (view.x !== undefined && !isNaN(view.x)) this.state.x = view.x;
         if (view.y !== undefined && !isNaN(view.y)) this.state.y = view.y;
         if (view.rotation !== undefined && !isNaN(view.rotation)) this.state.rotation = view.rotation;
+        this.state.isViewModified = true;
         this.updateTransform();
         if (!silent) this.onViewChange();
     }
