@@ -8,11 +8,11 @@ const CALIBRATION_STORAGE_KEY = 'flatCalibration_'; // Postfix with project ID
 
 const DEFAULT_PROJECTS = [
     {
-        id: 'denver-central',
-        name: 'Denver Central (1930s vs Modern)',
+        id: 'fort-dodge',
+        name: 'Fort Dodge (1930s vs Modern)',
         modernUrl: 'images/streetview_qG9OSpzmP62gz4aEXgARvA_high.jpg',
-        historicalUrl: 'images/centralpano_old.tif',
-        description: 'Downtown Denver historical comparison.',
+        historicalUrl: 'images/centralave_fortdodge_oldpano.jpg',
+        description: 'Fort Dodge historical comparison.',
         dateCreated: Date.now()
     }
 ];
